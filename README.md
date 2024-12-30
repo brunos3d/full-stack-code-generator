@@ -1,6 +1,8 @@
 
 # Full-Stack Code Generator 🌟
 
+![image](https://github.com/user-attachments/assets/9de230c7-6700-4ccb-b5ea-ed5ba7275be9)
+
 Generate type-safe, full-stack code effortlessly with Prisma, Zod, React, and more! 🚀  
 This project was entirely created using AI through Bolt.new in just **5 prompts**, showcasing the power of AI-assisted development today.  
 
