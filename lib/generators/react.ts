@@ -33,7 +33,7 @@ export function ${model.name}Form() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>${field.name}</FormLabel>
-              <Input {...field} type="${mapTypeToInputType(field.type)}" />
+              <Input {...field} type="${mapTypeToInputType(field.type as string)}" />
               <FormMessage />
             </FormItem>
           )}
