@@ -1,31 +1,50 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Plus, Trash2 } from "lucide-react";
-import { useModels } from "@/contexts/ModelContext";
-import { Model, Field, Relation } from "@/lib/types/model";
-import { TypeSelector } from "@/components/model-editor/type-selector";
+import { useState, useEffect } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Plus, Trash2, Edit } from 'lucide-react';
+import { useModels } from '@/contexts/ModelContext';
+import { Model, Field, Relation } from '@/lib/types/model';
+import { TypeSelector } from '@/components/model-editor/type-selector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export function ModelEditor() {
-  const { models, addModel, setActiveModelId } = useModels();
+  const { models, addModel, setActiveModelId, activeModelId, updateModel } = useModels();
   const [currentModel, setCurrentModel] = useState<Model>({
-    name: "",
+    name: '',
     fields: [],
   });
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const [fieldIndex, setFieldIndex] = useState<number | null>(null);
+  const [fieldDetails, setFieldDetails] = useState<Partial<Field>>({});
+
+  useEffect(() => {
+    const activeModel = models.find((model) => model.name === activeModelId);
+    if (activeModel) {
+      setCurrentModel(activeModel);
+    }
+  }, [activeModelId, models, setCurrentModel]);
 
   const addField = () => {
     setCurrentModel({
       ...currentModel,
-      fields: [...currentModel.fields, { 
-        name: "", 
-        type: "String", 
-        required: true,
-        isRelation: false
-      }],
+      fields: [
+        ...currentModel.fields,
+        {
+          name: '',
+          type: 'String',
+          required: true,
+          isRelation: false,
+          label: '',
+          description: '',
+          placeholder: '',
+          defaultValue: '',
+        },
+      ],
     });
   };
 
@@ -39,20 +58,18 @@ export function ModelEditor() {
   const updateField = (index: number, updates: Partial<Field>) => {
     setCurrentModel({
       ...currentModel,
-      fields: currentModel.fields.map((f, i) => 
-        i === index ? { ...f, ...updates } : f
-      ),
+      fields: currentModel.fields.map((f, i) => (i === index ? { ...f, ...updates } : f)),
     });
   };
 
   const handleTypeChange = (index: number, value: string, isRelation: boolean) => {
     if (isRelation) {
-      const [modelName, relationType] = value.split(":");
+      const [modelName, relationType] = value.split(':');
       const relation: Relation = {
         type: relationType as any,
         model: modelName,
         required: true,
-        list: relationType !== "one-to-one"
+        list: relationType !== 'one-to-one',
       };
       updateField(index, { type: relation, isRelation: true });
     } else {
@@ -62,17 +79,39 @@ export function ModelEditor() {
 
   const saveModel = () => {
     if (!currentModel.name) return;
-    
-    addModel(currentModel);
-    setActiveModelId(currentModel.name);
-    setCurrentModel({ name: "", fields: [] });
+
+    const existingModel = models.find((model) => model.name === currentModel.name);
+    if (existingModel) {
+      updateModel(currentModel);
+    } else {
+      addModel(currentModel);
+      setActiveModelId(currentModel.name);
+    }
+    setCurrentModel({ name: '', fields: [] });
+  };
+
+  const clearEditor = () => {
+    setCurrentModel({ name: '', fields: [] });
+  };
+
+  const openFieldDialog = (index: number) => {
+    setFieldIndex(index);
+    setFieldDetails(currentModel.fields[index]);
+    setDialogOpen(true);
+  };
+
+  const saveFieldDetails = () => {
+    if (fieldIndex !== null) {
+      updateField(fieldIndex, fieldDetails);
+    }
+    setDialogOpen(false);
   };
 
   return (
     <div className="space-y-6">
       <Card className="p-6">
         <div className="space-y-4">
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="modelName">Model Name</Label>
             <Input
               id="modelName"
@@ -83,23 +122,19 @@ export function ModelEditor() {
           </div>
 
           <div className="space-y-4">
+            <Label>Model Fields</Label>
             {currentModel.fields.map((field, index) => (
-              <div key={index} className="flex gap-4">
-                <Input
-                  value={field.name}
-                  onChange={(e) => updateField(index, { name: e.target.value })}
-                  placeholder="Field name"
-                />
+              <div key={index} className="flex gap-4 items-center">
+                <Input value={field.name} onChange={(e) => updateField(index, { name: e.target.value })} placeholder="Field name" />
                 <TypeSelector
-                  value={typeof field.type === "string" ? field.type : `${field.type.model}:${field.type.type}`}
+                  value={typeof field.type === 'string' ? field.type : `${field.type.model}:${field.type.type}`}
                   onChange={(value, isRelation) => handleTypeChange(index, value, isRelation)}
                 />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => removeField(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="outline" size="icon" onClick={() => openFieldDialog(index)}>
+                  <Edit />
+                </Button>
+                <Button variant="destructive" size="icon" onClick={() => removeField(index)}>
+                  <Trash2 />
                 </Button>
               </div>
             ))}
@@ -107,28 +142,76 @@ export function ModelEditor() {
 
           <div className="flex gap-4">
             <Button onClick={addField} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus />
               Add Field
             </Button>
-            <Button onClick={saveModel}>Save Model</Button>
+            <Button onClick={clearEditor}>New Model</Button>
+            {currentModel.name && <Button onClick={saveModel}>Save Model</Button>}
+            {!!currentModel.fields.length && (
+              <Button variant="destructive" onClick={clearEditor}>
+                Clear Editor
+              </Button>
+            )}
           </div>
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
-        {models.map((model) => (
-          <Card
-            key={model.name}
-            className="p-4 cursor-pointer hover:bg-accent"
-            onClick={() => setActiveModelId(model.name)}
-          >
-            <h3 className="font-semibold mb-2">{model.name}</h3>
-            <div className="text-sm text-muted-foreground">
-              {model.fields.length} fields
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Field Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <Label htmlFor="hideInForm">Hide in Form</Label>
+              <Checkbox
+                id="hideInForm"
+                checked={fieldDetails.hideInForm || false}
+                onCheckedChange={(checked) => setFieldDetails({ ...fieldDetails, hideInForm: checked === true })}
+              />
             </div>
-          </Card>
-        ))}
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="label">Label</Label>
+              <Input
+                id="label"
+                value={fieldDetails.label || ''}
+                onChange={(e) => setFieldDetails({ ...fieldDetails, label: e.target.value })}
+                placeholder="Field label"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={fieldDetails.description || ''}
+                onChange={(e) => setFieldDetails({ ...fieldDetails, description: e.target.value })}
+                placeholder="Field description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="placeholder">Placeholder</Label>
+              <Input
+                id="placeholder"
+                value={fieldDetails.placeholder || ''}
+                onChange={(e) => setFieldDetails({ ...fieldDetails, placeholder: e.target.value })}
+                placeholder="Field placeholder"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="defaultValue">Default Value</Label>
+              <Input
+                id="defaultValue"
+                value={fieldDetails.defaultValue || ''}
+                onChange={(e) => setFieldDetails({ ...fieldDetails, defaultValue: e.target.value })}
+                placeholder="Field default value"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={saveFieldDetails}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { CodePreview } from "@/components/code-preview";
-import { useModels } from "@/contexts/ModelContext";
-import { generateApiRoutes } from "@/lib/generators/api";
+import { CodePreview } from '@/components/code-preview';
+import { useModels } from '@/contexts/ModelContext';
+import { generateApiRoutes } from '@/lib/generators/api';
 
 export function APITab() {
   const { getActiveModel } = useModels();
@@ -11,7 +11,8 @@ export function APITab() {
   return (
     <CodePreview
       title="API Routes"
-      code={activeModel ? generateApiRoutes(activeModel) : "// Select a model first"}
+      code={activeModel ? generateApiRoutes(activeModel) : '// Select a model first'}
+      filePath={activeModel ? `/api/${activeModel.name.toLowerCase()}/route.ts` : ''}
     />
   );
 }
